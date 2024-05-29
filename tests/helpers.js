@@ -2,16 +2,16 @@ var EventEmitter = require('events').EventEmitter;
 var stream = require('stream');
 var util = require('util');
 
-// Used to stub out calls to `request`.
-exports.FakeRequest = function () {
+// Used to stub out calls to `node-fetch`.
+exports.FakeFetch = function () {
   EventEmitter.call(this)
 }
-util.inherits(exports.FakeRequest, EventEmitter)
-exports.FakeRequest.prototype.destroy = function () {
+util.inherits(exports.FakeFetch, EventEmitter)
+exports.FakeFetch.prototype.destroy = function () {
 
 }
 
-// Used to stub out the http.IncomingMessage object emitted by the "response" event on `request`.
+// Used to stub out the http.IncomingMessage object emitted by the "response" event on `node-fetch`.
 exports.FakeResponse = function (statusCode, body) {
   if (!body) {
     body = '';

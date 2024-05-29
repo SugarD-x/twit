@@ -395,8 +395,8 @@ describe('streaming API bad request', function (done) {
 })
 
 describe('streaming API `messages` event', function (done) {
-  var request = require('request');
-  var originalPost = request.post;
+  var fetch = require('node-fetch');
+  var originalPost = fetch.post;
   var RewiredTwit = rewire('../lib/twitter');
   var RewiredStreamingApiConnection = rewire('../lib/streaming-api-connection');
   var revertParser, revertTwit;
@@ -415,11 +415,11 @@ describe('streaming API `messages` event', function (done) {
     revertTwit = RewiredTwit.__set__('StreamingAPIConnection', RewiredStreamingApiConnection);
     revertParser = RewiredStreamingApiConnection.__set__('Parser', MockParser);
 
-    request.post = function () { return new helpers.FakeRequest() }
+    fetch.post = function () { return new helpers.FakeFetch() }
   })
 
   after(function () {
-    request.post = originalPost;
+    fetch.post = originalPost;
     revertTwit();
     revertParser();
   })
@@ -456,15 +456,15 @@ describe('streaming API `messages` event', function (done) {
 describe('streaming reconnect', function (done) {
   it('correctly implements connection closing backoff', function (done) {
     var stubPost = function () {
-      var fakeRequest = new helpers.FakeRequest()
+      var fakeFetch = new helpers.FakeFetch()
       process.nextTick(function () {
-        fakeRequest.emit('close')
+        fakeFetch.emit('close')
       })
-      return fakeRequest
+      return fakeFetch
     }
 
-    var request = require('request')
-    var stubPost = sinon.stub(request, 'post', stubPost)
+    var fetch = require('node-fetch')
+    var stubPost = sinon.stub(fetch, 'post', stubPost)
 
     var twit = new Twit(config1);
     var stream = twit.stream('statuses/filter', { track: [ 'fun', 'yolo']});
@@ -488,7 +488,7 @@ describe('streaming reconnect', function (done) {
       stream._startPersistentConnection();
 
       if (reconnectCount === reconnects.length -1) {
-        // restore request.post
+        // restore fetch.post
         stubPost.restore()
         testDone = true
         return done();
@@ -498,17 +498,17 @@ describe('streaming reconnect', function (done) {
 
   it('correctly implements 420 backoff', function (done) {
     var stubPost = function () {
-      var fakeRequest = new helpers.FakeRequest()
+      var fakeFetch = new helpers.FakeFetch()
       process.nextTick(function () {
         var fakeResponse = new helpers.FakeResponse(420)
-        fakeRequest.emit('response', fakeResponse)
-        fakeRequest.emit('close')
+        fakeFetch.emit('response', fakeResponse)
+        fakeFetch.emit('close')
       })
-      return fakeRequest
+      return fakeFetch
     }
 
-    var request = require('request')
-    var stubPost = sinon.stub(request, 'post', stubPost)
+    var fetch = require('node-fetch')
+    var stubPost = sinon.stub(fetch, 'post', stubPost)
 
     var twit = new Twit(config1);
     var stream = twit.stream('statuses/filter', { track: [ 'fun', 'yolo']});
@@ -534,7 +534,7 @@ describe('streaming reconnect', function (done) {
       stream._startPersistentConnection();
 
       if (reconnectCount === reconnects.length -1) {
-        // restore request.post
+        // restore fetch.post
         stubPost.restore()
         testComplete = true
         return done();
@@ -546,20 +546,20 @@ describe('streaming reconnect', function (done) {
 describe('Streaming API disconnect message', function (done) {
   it.skip('results in stopping the stream', function (done) {
     var stubPost = function () {
-      var fakeRequest = new helpers.FakeRequest()
+      var fakeFetch = new helpers.FakeFetch()
       process.nextTick(function () {
         var body = zlib.gzipSync(JSON.stringify({disconnect: true}) + '\r\n')
         var fakeResponse = new helpers.FakeResponse(200, body)
-        fakeRequest.emit('response', fakeResponse);
+        fakeFetch.emit('response', fakeResponse);
         fakeResponse.emit('close')
       });
-      return fakeRequest
+      return fakeFetch
     }
 
-    var request = require('request')
-    var origRequest = request.post
+    var fetch = require('node-fetch')
+    var origFetch = fetch.post
     var stubs = sinon.collection
-    stubs.stub(request, 'post', stubPost)
+    stubs.stub(fetch, 'post', stubPost)
 
     var twit = new Twit(config1);
     var stream = twit.stream('statuses/filter', { track: ['fun']});
@@ -567,7 +567,7 @@ describe('Streaming API disconnect message', function (done) {
     stream.on('disconnect', function (disconnMsg) {
       stream.stop();
       // restore stub
-      request.post = origRequest
+      fetch.post = origFetch
       done();
     })
   })
@@ -578,20 +578,20 @@ describe.skip('Streaming API Connection limit exceeded message', function (done)
     var errMsg = 'Exceeded connection limit for user';
 
     var stubPost = function () {
-      var fakeRequest = new helpers.FakeRequest();
+      var fakeFetch = new helpers.FakeFetch();
       process.nextTick(function () {
         var body = zlib.gzipSync(errMsg + '\r\n');
         var fakeResponse = new helpers.FakeResponse(200, body);
-        fakeRequest.emit('response', fakeResponse);
+        fakeFetch.emit('response', fakeResponse);
         fakeResponse.emit('close');
       });
-      return fakeRequest
+      return fakeFetch
     }
 
-    var request = require('request');
-    var origRequest = request.post;
+    var fetch = require('node-fetch');
+    var origFetch = fetch.post;
     var stubs = sinon.collection;
-    stubs.stub(request, 'post', stubPost);
+    stubs.stub(fetch, 'post', stubPost);
 
     var twit = new Twit(config1);
     var stream = twit.stream('statuses/filter');
@@ -600,7 +600,7 @@ describe.skip('Streaming API Connection limit exceeded message', function (done)
       assert(err.toString().indexOf(errMsg) !== -1, 'Unexpected error msg:' + errMsg + '.');;
       stream.stop();
       // restore stub
-      request.post = origRequest;
+      fetch.post = origFetch;
       done();
     })
   })
@@ -609,19 +609,19 @@ describe.skip('Streaming API Connection limit exceeded message', function (done)
 describe('Streaming API connection management', function () {
   it('.stop() works in all states', function (done) {
     var stubPost = function () {
-      var fakeRequest = new helpers.FakeRequest();
+      var fakeFetch = new helpers.FakeFetch();
       process.nextTick(function () {
         var body = zlib.gzipSync('Foobar\r\n');
         var fakeResponse = new helpers.FakeResponse(200, body);
-        fakeRequest.emit('response', fakeResponse);
+        fakeFetch.emit('response', fakeResponse);
       });
-      return fakeRequest
+      return fakeFetch
     }
 
-    var request = require('request');
-    var origRequest = request.post;
+    var fetch = require('node-fetch');
+    var origFetch = fetch.post;
     var stubs = sinon.collection;
-    stubs.stub(request, 'post', stubPost);
+    stubs.stub(fetch, 'post', stubPost);
 
     var twit = new Twit(config1);
 
@@ -629,7 +629,7 @@ describe('Streaming API connection management', function () {
     stream.stop();
     console.log('\nStopped. Restarting..');
     stream.start();
-    stream.once('connect', function(request) {
+    stream.once('connect', function(fetch) {
       console.log('Stream emitted `connect`. Stopping & starting stream..')
       stream.stop();
 

@@ -663,30 +663,30 @@ describe('REST API', function () {
       })
     })
     describe('handling other errors', function () {
-      it('should just forward errors raised by underlying request lib', function (done) {
+      it('should just forward errors raised by underlying node-fetch lib', function (done) {
         var twit = new Twit(config1);
         var fakeError = new Error('derp')
 
-        var FakeRequest = function () {
+        var FakeFetch = function () {
           EventEmitter.call(this)
         }
-        util.inherits(FakeRequest, EventEmitter)
+        util.inherits(FakeFetch, EventEmitter)
 
         var stubGet = function () {
-          var fakeRequest = new FakeRequest()
+          var fakeFetch = new FakeFetch()
           process.nextTick(function () {
-            fakeRequest.emit('error', fakeError)
+            fakeFetch.emit('error', fakeError)
           })
-          return fakeRequest
+          return fakeFetch
         }
 
-        var request = require('request')
-        var stubGet = sinon.stub(request, 'get', stubGet)
+        var fetch = require('node-fetch')
+        var stubGet = sinon.stub(fetch, 'get', stubGet)
 
         twit.get('account/verify_credentials', function (err, reply, res) {
           assert(err === fakeError)
 
-          // restore request.get
+          // restore fetch.get
           stubGet.restore()
 
           done()
