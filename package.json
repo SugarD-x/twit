@@ -14,7 +14,7 @@
   "dependencies": {
     "bluebird": "^3.1.5",
     "mime": "^3.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^2.6.13"
   },
   "devDependencies": {
     "async": "3.2.5",
